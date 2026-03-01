@@ -1,0 +1,37 @@
+# Python & Sanal Ortam
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Orijinal ve Çoğaltılmış Ses Verileri (Yerel testte kalacak)
+Veri_Egitim/
+Veri_Test/
+Kayıtlar/
+
+# Türetilmiş Görseller ve Görüntüler (Makine Öğrenmesi Resim Verileri)
+Spektrogramlar/
+Gorseller/
+
+# Geçici Medya ve Model Kayıt Dosyaları
+*.wav
+*.mp4
+*.mp3
+*.ogg
+
+# IDE ve İşletim Sistemi Kalıntıları
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# İzin Verilen Dosyalar (Whitelist) - Eğitilmiş Modeller ve Kodlar
+!tavuk_modeli.pkl
+!tavuk_cnn_modeli.keras
