@@ -475,8 +475,9 @@ if __name__ == "__main__":
 
     print("[OK] Arayüz hazır, sunucu başlatılıyor...")
     app.launch(
-        server_name="127.0.0.1",
+        server_name="0.0.0.0",
         server_port=7860,
         share=False,
+        ssr_mode=False,
         theme=gr.themes.Soft(primary_hue="cyan", neutral_hue="slate"),
     )
