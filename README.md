@@ -1,3 +1,13 @@
+---
+title: CİK-SÖR Akustik Erken Uyarı Sistemi
+emoji: 🐔
+colorFrom: yellow
+colorTo: red
+sdk: gradio
+app_file: app.py
+pinned: false
+---
+
 # CİK-SÖR V1 Demo
 
 ## Proje Amacı
