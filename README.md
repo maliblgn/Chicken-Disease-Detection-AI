@@ -10,6 +10,8 @@ pinned: false
 
 # CİK-SÖR V1 Demo
 
+[![Canlı Demo](https://img.shields.io/badge/%F0%9F%A4%97%20HuggingFace-Canlı%20Demo-yellow)](https://huggingface.co/spaces/maliblgn/Chicken-Disease-Detection-AI)
+
 ## Proje Amacı
 
 CİK-SÖR, kanatlı hayvanlarda özellikle tavukların vokalizasyonlarını analiz ederek sağlıklı, anormal/hastalık şüphesi taşıyan ve çevresel gürültü sınıflarını ayırmayı amaçlayan bir yapay zekâ destekli erken uyarı sistemidir.
