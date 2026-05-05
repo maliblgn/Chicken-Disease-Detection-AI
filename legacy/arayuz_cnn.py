@@ -1,9 +1,8 @@
 import os
 import librosa
-import librosa.display
 import numpy as np
 import tensorflow as tf
-import matplotlib.pyplot as plt
+from PIL import Image
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import sounddevice as sd
@@ -17,49 +16,55 @@ if not os.path.exists(MODEL_YOLU):
     messagebox.showerror("Hata", f"Model dosyası ({MODEL_YOLU}) bulunamadı!\nLütfen önce egitim_cnn.py dosyasını çalıştırın.")
     exit()
 
-# Eğitilmiş Keras Modelini Yükle
-print("Yapay Zeka (CNN) Modeli Belleğe Alınıyor...")
+print("V2 Yapay Zeka (CSCNN) Modeli Belleğe Alınıyor...")
 model = tf.keras.models.load_model(MODEL_YOLU)
 
-# Tensorflow 'image_dataset_from_directory' varsayılan alfabetik sınıf sırası
+# Tensorflow varsayılan sınıf sırası
 SINIFLAR = ['Healthy', 'Noise', 'Unhealthy']
 IMG_SIZE = (128, 128)
 
+def normalize_matrix(matrix):
+    """Matrisi 0-255 piksel aralığına sıkıştırır."""
+    mn = np.min(matrix)
+    mx = np.max(matrix)
+    if mx - mn == 0:
+        return np.zeros_like(matrix, dtype=np.uint8)
+    return ((matrix - mn) / (mx - mn) * 255).astype(np.uint8)
+
 def sesi_spectrograma_cevir_ve_tahmin_et(dosya_yolu):
-    gecici_png = "temp_spectrogram.png"
+    gecici_png = "temp_v2_spectrogram.png"
     try:
-        # 1. Sesi yükle ve spectrogram oluştur (spektrogram_olusturucu.py ile birebir aynı!)
+        # 1. Sesi yükle ve 3-Kanallı (RGB) Tensör oluştur (V2 Akademik Metot)
         y, sr = librosa.load(dosya_yolu, sr=None)
         S = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=128, fmax=8000)
         S_dB = librosa.power_to_db(S, ref=np.max)
+        delta = librosa.feature.delta(S_dB)
+        delta2 = librosa.feature.delta(S_dB, order=2)
         
-        # 2. Resmi çiz ve kaydet (Eksensiz, boşluksuz saf ısı haritası)
-        fig, ax = plt.subplots(figsize=(4, 4))
-        librosa.display.specshow(S_dB, sr=sr, fmax=8000, ax=ax, cmap='magma')
-        ax.set_axis_off()
-        fig.subplots_adjust(left=0, right=1, bottom=0, top=1, wspace=0, hspace=0)
-        plt.savefig(gecici_png, bbox_inches='tight', pad_inches=0)
-        plt.close(fig)
+        R = normalize_matrix(S_dB)
+        G = normalize_matrix(delta)
+        B = normalize_matrix(delta2)
         
-        # 3. Resmi Keras için yükle ve boyutlandır (Eğitimdeki boyut: 128x128)
-        img = tf.keras.utils.load_img(gecici_png, target_size=IMG_SIZE)
-        img_array = tf.keras.utils.img_to_array(img)
+        img_array = np.stack([R, G, B], axis=-1)
+        img_array = np.flipud(img_array)
         
-        # CNN eğitim sırasında Batch formatı(32, 128, 128, 3) beklentisindedir. 
-        # Biz 1 resim yolladığımız için Expand ederek (1, 128, 128, 3) boyutuna çekiyoruz.
-        img_array = tf.expand_dims(img_array, 0) 
+        img = Image.fromarray(img_array, 'RGB')
+        img = img.resize((128, 128), Image.Resampling.LANCZOS)
+        img.save(gecici_png)
         
-        # Sıkıştırmayı (Rescaling 1./255) modelimizin ilk katmanına (layers.Rescaling) entegre etmiştik.
-        # Bu nedenle veriyi manuel olarak /255'e bölmeye gerek YOKTUR.
+        # 2. Keras için yükle ve boyutlandır
+        img_keras = tf.keras.utils.load_img(gecici_png, target_size=IMG_SIZE)
+        img_keras_array = tf.keras.utils.img_to_array(img_keras)
+        img_keras_array = tf.expand_dims(img_keras_array, 0) 
         
-        # 4. Modele tahmin ettir!
-        tahmin_olasiliklari = model.predict(img_array)
+        # 3. Modele tahmin ettir!
+        tahmin_olasiliklari = model.predict(img_keras_array)
         tahmin_edilen_sinif_index = np.argmax(tahmin_olasiliklari[0])
         
         tahmin_edilen_sinif_ismi = SINIFLAR[tahmin_edilen_sinif_index]
         guven_orani = np.max(tahmin_olasiliklari[0]) * 100
         
-        # 5. Temizlik (Geçici izleri sil)
+        # 4. Temizlik
         if os.path.exists(gecici_png):
             os.remove(gecici_png)
             
@@ -67,7 +72,6 @@ def sesi_spectrograma_cevir_ve_tahmin_et(dosya_yolu):
         
     except Exception as e:
         print(f"Hata detayı: {e}")
-        # Temizliği hata anında da yapmayı dene
         if os.path.exists(gecici_png):
             os.remove(gecici_png)
         return None, 0
@@ -82,11 +86,13 @@ def analizi_ekrana_yazdir(dosya_yolu):
         elif sonuc_metni == 'Unhealthy':
             gosterim = "HASTA (Unhealthy)"
             renk = "#e74c3c"
-        else: # Noise
+        else:
             gosterim = "GÜRÜLTÜ (Noise)"
             renk = "#f39c12"
             
-        lbl_sonuc.config(text=f"SONUÇ: {gosterim}\n(Gizli Özgüven: %{guven:.1f})", fg=renk)
+        # Güven skoruna göre metin ekle
+        guven_durumu = "Yüksek Güven" if guven > 85 else "Orta Güven (Dinletin)"
+        lbl_sonuc.config(text=f"SONUÇ: {gosterim}\n(%{guven:.1f} - {guven_durumu})", fg=renk)
     else:
         messagebox.showerror("Analiz Hatası", "Ses işlenirken bir hata oluştu.")
         lbl_sonuc.config(text="Analiz Başarısız", fg="black")
@@ -98,7 +104,7 @@ def ses_yukle_ve_test_et():
     )
     if dosya_yolu:
         lbl_durum.config(text=f"Seçilen: {os.path.basename(dosya_yolu)}")
-        lbl_sonuc.config(text="CNN Spektrogramı çiziyor...", fg="blue")
+        lbl_sonuc.config(text="V2 CNN Tensor üretiyor...", fg="blue")
         pencere.update()
         analizi_ekrana_yazdir(dosya_yolu)
 
@@ -116,7 +122,7 @@ def mikrofondan_kaydet():
         sd.wait()
         write(gecici_dosya, fs, kayit)
         
-        lbl_durum.config(text="✅ Kayıt Tamamlandı! CNN analiz ediyor...", fg="green", font=("Segoe UI", 10))
+        lbl_durum.config(text="✅ Kayıt Tamamlandı! CSCNN analiz ediyor...", fg="green", font=("Segoe UI", 10))
         pencere.update()
         
         analizi_ekrana_yazdir(gecici_dosya)
@@ -128,17 +134,16 @@ def mikrofondan_kaydet():
         messagebox.showerror("Mikrofon Hatası", f"Mikrofona erişilemedi.\nSistem hatası: {e}")
         lbl_durum.config(text="Kayıt Başarısız!", fg="red")
 
-# Arayüz (GUI) Tasarımı (Eski Tasarıma Sadık Kalındı, Başlıklar Güncellendi)
+# Arayüz (GUI) Tasarımı
 pencere = tk.Tk()
-pencere.title("Derin Öğrenme (CNN) Tavuk Ses Analizi")
+pencere.title("V2 Derin Öğrenme (CSCNN) Tavuk Ses Analizi")
 pencere.geometry("550x450")
 pencere.configure(bg="#f8f9fa")
 
-lbl_baslik = tk.Label(pencere, text="Derin Öğrenme (CNN) Tavuk Ses Analizi", font=("Segoe UI", 16, "bold"), bg="#f8f9fa", fg="#2c3e50")
+lbl_baslik = tk.Label(pencere, text="V2 Derin Öğrenme (CSCNN) Merkezi", font=("Segoe UI", 16, "bold"), bg="#f8f9fa", fg="#2c3e50")
 lbl_baslik.pack(pady=15)
 
-# Biraz teknik detay gösterelim
-lbl_altyazi = tk.Label(pencere, text="Model: tavuk_cnn_modeli.keras (128x128 Px Mel-Spectrogram)", font=("Segoe UI", 8), bg="#f8f9fa", fg="#95a5a6")
+lbl_altyazi = tk.Label(pencere, text="Model: tavuk_cnn_modeli.keras (3-Kanallı RGB Tensor)", font=("Segoe UI", 8), bg="#f8f9fa", fg="#95a5a6")
 lbl_altyazi.pack()
 
 frame_butonlar = tk.Frame(pencere, bg="#f8f9fa")
@@ -156,5 +161,5 @@ lbl_durum.pack(pady=15)
 lbl_sonuc = tk.Label(pencere, text="SONUÇ: Bekleniyor...", font=("Segoe UI", 18, "bold"), bg="#f8f9fa", fg="#34495e")
 lbl_sonuc.pack(pady=20)
 
-print("GUI Yüklemesi Tamamlandı.")
+print("V2 GUI Yüklemesi Tamamlandı.")
 pencere.mainloop()

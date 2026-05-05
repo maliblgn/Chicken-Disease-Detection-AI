@@ -7,3 +7,9 @@ joblib
 matplotlib
 soundfile
 scipy
+seaborn
+Pillow
+tqdm
+sounddevice
+moviepy
+noisereduce

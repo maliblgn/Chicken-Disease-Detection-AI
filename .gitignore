@@ -20,11 +20,17 @@ Kayıtlar/
 Spektrogramlar/
 Gorseller/
 
-# Geçici Medya ve Model Kayıt Dosyaları
+# Geçici Medya Dosyaları
 *.wav
 *.mp4
 *.mp3
 *.ogg
+
+# Runtime Verileri
+data/logs/
+data/raw/
+data/processed/
+ciksordb.sqlite
 
 # IDE ve İşletim Sistemi Kalıntıları
 .vscode/
@@ -32,6 +38,13 @@ Gorseller/
 .DS_Store
 Thumbs.db
 
-# İzin Verilen Dosyalar (Whitelist) - Eğitilmiş Modeller ve Kodlar
-!tavuk_modeli.pkl
-!tavuk_cnn_modeli.keras
+# Kesilecek/Kırpılmış Sesler (Araç klasörleri)
+Kesilecek_Sesler/
+Kirpilmis_Sesler/
+Donusturulen_Sesler/
+Videolar/
+
+# İzin Verilen Dosyalar (Whitelist) - Eğitilmiş Modeller
+!models/tavuk_modeli.pkl
+!models/tavuk_cnn_modeli.keras
+!models/tavuk_edge_model.tflite
